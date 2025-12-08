@@ -1,0 +1,132 @@
+# Data Configuration
+data:
+  datasets:
+    - name: "cybersecurity_attacks"
+      path: "data/raw/cybersecurity_attacks.csv"
+      target_column: "Attack Type"
+      description: "Cybersecurity Attacks Dataset (~40,000 records)"
+    
+    - name: "wsn_dataset"
+      path: "data/raw/WSN-DS.csv"
+      target_column: "label"
+      description: "Wireless Sensor Network Dataset (~374,661 records)"
+  
+  preprocessing:
+    # Only remove truly redundant columns - we'll extract features from others
+    remove_columns: ['Timestamp', 'Proxy Information']
+    
+    # Extract intelligent features from high-cardinality columns
+    extract_ip_features: true  # Extract IP class, private/public, first octet
+    extract_text_features: true  # Extract length, entropy, SQL/XSS patterns
+    extract_geo_features: true  # Extract city/state encoding
+    
+    correlation_threshold: 0.95
+    variance_threshold: 0.01
+    encoding_method: 'onehot'
+    missing_value_strategy: 'auto'
+    handle_outliers: true
+    outlier_method: 'isolation_forest'
+    outlier_strategy: 'clip'
+    outlier_contamination: 0.1
+    scaling_method: 'standard'
+    balance_classes: true
+    balance_method: 'smote'
+    test_size: 0.2
+    cv_folds: 5
+    random_state: 42
+
+# Feature Engineering
+feature_engineering:
+  create_temporal: true
+  create_statistical: true
+  create_network: true
+  feature_selection:
+    enabled: true
+    method: 'importance'
+    n_features: 50
+
+# Model Configuration
+models:
+  ml:
+    random_forest:
+      n_estimators: 100
+      max_depth: 20
+      min_samples_split: 5
+      random_state: 42
+    
+    svm:
+      kernel: 'rbf'
+      C: 1.0
+      gamma: 'scale'
+      probability: true
+    
+    xgboost:
+      n_estimators: 100
+      max_depth: 10
+      learning_rate: 0.1
+      subsample: 0.8
+    
+    gradient_boosting:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 5
+  
+  dl:
+    cnn:
+      filters: [64, 128, 256]
+      kernel_size: 3
+      dropout: 0.5
+      epochs: 50
+      batch_size: 32
+    
+    lstm:
+      units: [128, 64]
+      dropout: 0.3
+      recurrent_dropout: 0.3
+      bidirectional: true
+      epochs: 50
+      batch_size: 32
+    
+    vgg:
+      filters: [64, 128, 256]
+      epochs: 50
+      batch_size: 32
+    
+    resnet:
+      filters: [64, 128, 256]
+      blocks_per_stage: 2
+      epochs: 50
+      batch_size: 32
+
+# Training Configuration
+training:
+  use_cross_validation: true
+  cv_folds: 5
+  optimize_hyperparameters: false
+  callbacks:
+    early_stopping:
+      patience: 10
+      monitor: 'val_loss'
+    model_checkpoint:
+      save_best_only: true
+    reduce_lr:
+      factor: 0.5
+      patience: 5
+
+# Evaluation
+evaluation:
+  metrics:
+    - accuracy
+    - precision
+    - recall
+    - f1_score
+    - roc_auc
+  save_predictions: true
+  save_models: true
+  output_dir: 'results/'
+
+# Logging
+logging:
+  level: 'INFO'
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  file: 'logs/training.log'

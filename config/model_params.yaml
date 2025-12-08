@@ -1,0 +1,167 @@
+# Model Hyperparameter Configurations
+# Advanced parameter tuning for each model
+
+machine_learning:
+  random_forest:
+    default:
+      n_estimators: 100
+      max_depth: 20
+      min_samples_split: 5
+      min_samples_leaf: 2
+      max_features: 'sqrt'
+      random_state: 42
+      n_jobs: -1
+    
+    search_space:
+      n_estimators: [50, 100, 200, 300]
+      max_depth: [10, 20, 30, None]
+      min_samples_split: [2, 5, 10]
+      min_samples_leaf: [1, 2, 4]
+      max_features: ['sqrt', 'log2', None]
+
+  svm:
+    default:
+      kernel: 'rbf'
+      C: 1.0
+      gamma: 'scale'
+      probability: true
+      random_state: 42
+    
+    search_space:
+      C: [0.1, 1.0, 10.0, 100.0]
+      gamma: ['scale', 'auto', 0.001, 0.01, 0.1, 1.0]
+      kernel: ['rbf', 'poly', 'sigmoid']
+
+  xgboost:
+    default:
+      n_estimators: 100
+      max_depth: 10
+      learning_rate: 0.1
+      subsample: 0.8
+      colsample_bytree: 0.8
+      gamma: 0
+      random_state: 42
+      n_jobs: -1
+    
+    search_space:
+      n_estimators: [50, 100, 200, 300]
+      max_depth: [3, 5, 7, 10, 15]
+      learning_rate: [0.01, 0.05, 0.1, 0.2]
+      subsample: [0.6, 0.8, 1.0]
+      colsample_bytree: [0.6, 0.8, 1.0]
+      gamma: [0, 0.1, 0.2, 0.3]
+
+  gradient_boosting:
+    default:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 5
+      min_samples_split: 2
+      min_samples_leaf: 1
+      subsample: 1.0
+      random_state: 42
+    
+    search_space:
+      n_estimators: [50, 100, 200, 300]
+      learning_rate: [0.01, 0.05, 0.1, 0.2]
+      max_depth: [3, 5, 7, 10]
+      min_samples_split: [2, 5, 10]
+      subsample: [0.6, 0.8, 1.0]
+
+deep_learning:
+  cnn:
+    architecture:
+      conv_layers: 3
+      filters: [64, 128, 256]
+      kernel_size: 3
+      pool_size: 2
+      dropout_conv: 0.3
+      dropout_dense: 0.5
+      dense_units: 128
+    
+    training:
+      optimizer: 'adam'
+      learning_rate: 0.001
+      loss: 'sparse_categorical_crossentropy'
+      metrics: ['accuracy']
+      epochs: 50
+      batch_size: 32
+      validation_split: 0.2
+
+  lstm:
+    architecture:
+      lstm_layers: 2
+      units: [128, 64]
+      dropout: 0.3
+      recurrent_dropout: 0.3
+      bidirectional: true
+      dense_units: 64
+      dropout_dense: 0.5
+    
+    training:
+      optimizer: 'adam'
+      learning_rate: 0.001
+      loss: 'sparse_categorical_crossentropy'
+      metrics: ['accuracy']
+      epochs: 50
+      batch_size: 32
+      validation_split: 0.2
+
+  vgg:
+    architecture:
+      conv_blocks: 3
+      filters: [64, 128, 256]
+      conv_per_block: 2
+      kernel_size: 3
+      pool_size: 2
+      dense_units: 256
+      dropout: 0.5
+    
+    training:
+      optimizer: 'adam'
+      learning_rate: 0.001
+      loss: 'sparse_categorical_crossentropy'
+      metrics: ['accuracy']
+      epochs: 50
+      batch_size: 32
+      validation_split: 0.2
+
+  resnet:
+    architecture:
+      residual_blocks: 3
+      filters: [64, 128, 256]
+      blocks_per_stage: 2
+      kernel_size: 3
+      initial_kernel_size: 7
+      initial_strides: 2
+    
+    training:
+      optimizer: 'adam'
+      learning_rate: 0.001
+      loss: 'sparse_categorical_crossentropy'
+      metrics: ['accuracy']
+      epochs: 50
+      batch_size: 32
+      validation_split: 0.2
+
+# Hyperparameter Optimization Settings
+optimization:
+  method: 'optuna'  # 'grid', 'random', 'optuna'
+  
+  grid_search:
+    cv: 5
+    n_jobs: -1
+    verbose: 2
+  
+  random_search:
+    n_iter: 50
+    cv: 5
+    n_jobs: -1
+    verbose: 2
+  
+  optuna:
+    n_trials: 100
+    timeout: 3600  # 1 hour
+    n_jobs: -1
+    direction: 'maximize'
+    pruner: 'median'
