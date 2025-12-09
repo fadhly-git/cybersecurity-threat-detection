@@ -20,6 +20,7 @@ import os
 import numpy as np
 import pandas as pd
 import joblib
+from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler, LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.feature_selection import SelectKBest, mutual_info_classif
@@ -68,14 +69,14 @@ class CICIDS2017Loader:
         
         # Load and combine all files
         dfs = []
-        for csv_file in csv_files:
+        print(f"\nLoading CSV files...")
+        for csv_file in tqdm(csv_files, desc="Loading Data", ncols=80, leave=True):
             file_path = os.path.join(self.data_path, csv_file)
-            print(f"\nLoading {csv_file}...")
             df = pd.read_csv(file_path)
-            print(f"  Shape: {df.shape}")
             dfs.append(df)
         
         # Combine all dataframes
+        print(f"\nCombining dataframes...")
         combined_df = pd.concat(dfs, ignore_index=True)
         
         print(f"\n✅ Total dataset shape: {combined_df.shape}")
@@ -285,8 +286,15 @@ class CICIDS2017Loader:
         print(f"\n[7/10] Selecting top {k} features via mutual information...")
 
         self.feature_selector = SelectKBest(score_func=mutual_info_classif, k=k)
-        X_train_selected = self.feature_selector.fit_transform(X_train, y_train)
-        X_test_selected = self.feature_selector.transform(X_test)
+        
+        with tqdm(total=2, desc="Feature Selection", ncols=80, leave=True) as pbar:
+            pbar.set_description("Feature Selection [Training]")
+            X_train_selected = self.feature_selector.fit_transform(X_train, y_train)
+            pbar.update(1)
+            
+            pbar.set_description("Feature Selection [Test]")
+            X_test_selected = self.feature_selector.transform(X_test)
+            pbar.update(1)
 
         support_mask = self.feature_selector.get_support()
         selected = X_train.columns[support_mask]
@@ -307,15 +315,36 @@ class CICIDS2017Loader:
         for cls, count in zip(unique, counts):
             print(f"        Class {cls}: {count:,} samples")
 
-        smote_enn = SMOTEENN(random_state=42)
+        # Create SMOTE-ENN with verbose callback for progress
+        smote_enn = SMOTEENN(
+            random_state=42, 
+            smote_kwargs={'k_neighbors': 5},
+            n_jobs=-1  # Use all CPU cores for faster processing
+        )
 
+        print("\n      Processing... (this may take a few minutes)")
+        print("      ⏳ Running SMOTE oversampling and ENN noise cleaning...")
+        
         if len(X_train.shape) > 2:
             original_shape = X_train.shape
             X_train_flat = X_train.reshape(X_train.shape[0], -1)
-            X_resampled, y_resampled = smote_enn.fit_resample(X_train_flat, y_train)
-            X_resampled = X_resampled.reshape(-1, *original_shape[1:])
+            print(f"      Flattening data: {original_shape} → {X_train_flat.shape}")
+            
+            # Apply SMOTE-ENN with progress indicator
+            with tqdm(total=2, desc="SMOTE-ENN", ncols=80, leave=True) as pbar:
+                pbar.set_description("SMOTE-ENN [SMOTE oversampling]")
+                pbar.update(0.5)
+                
+                X_resampled, y_resampled = smote_enn.fit_resample(X_train_flat, y_train)
+                pbar.update(1)
+                
+                pbar.set_description("SMOTE-ENN [Reshaping]")
+                X_resampled = X_resampled.reshape(-1, *original_shape[1:])
+                pbar.update(0.5)
         else:
-            X_resampled, y_resampled = smote_enn.fit_resample(X_train, y_train)
+            with tqdm(total=1, desc="SMOTE-ENN", ncols=80, leave=True) as pbar:
+                X_resampled, y_resampled = smote_enn.fit_resample(X_train, y_train)
+                pbar.update(1)
 
         unique, counts = np.unique(y_resampled, return_counts=True)
         print("\n      Class distribution AFTER SMOTE-ENN:")
@@ -376,8 +405,14 @@ class CICIDS2017Loader:
         
         # 8. Min-Max scaling
         print(f"\n[8/10] Applying Min-Max scaling...")
-        X_train = self.scaler.fit_transform(X_train)
-        X_test = self.scaler.transform(X_test)
+        with tqdm(total=2, desc="Scaling", ncols=80, leave=True) as pbar:
+            pbar.set_description("Scaling [Training set]")
+            X_train = self.scaler.fit_transform(X_train)
+            pbar.update(1)
+            
+            pbar.set_description("Scaling [Test set]")
+            X_test = self.scaler.transform(X_test)
+            pbar.update(1)
         
         # 11. SMOTE-ENN (optional)
         if apply_smote:
@@ -385,8 +420,15 @@ class CICIDS2017Loader:
         
         # 12. Reshape for DL models (samples, features, 1)
         print(f"\n[10/10] Reshaping for deep learning models...")
-        X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
-        X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+        with tqdm(total=2, desc="Reshaping", ncols=80, leave=True) as pbar:
+            pbar.set_description("Reshaping [Training set]")
+            X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+            pbar.update(1)
+            
+            pbar.set_description("Reshaping [Test set]")
+            X_test = X_test.reshape(X_test.shape[0], X_test.shape[1], 1)
+            pbar.update(1)
+        
         
         print(f"\n{'='*60}")
         print("  PREPROCESSING COMPLETED")
