@@ -210,13 +210,17 @@ def load_or_preprocess_data(args):
         
         # Re-map labels to be sequential (0, 1, 2, ..., n-1)
         # This is critical after sampling as some classes may be missing
+        # Fit encoder on ALL unique labels from both train and test
+        all_labels = np.concatenate([y_train, y_test])
         label_encoder = LabelEncoder()
+        label_encoder.fit(all_labels)
+        
         y_train_original = y_train.copy()
-        y_train = label_encoder.fit_transform(y_train)
+        y_train = label_encoder.transform(y_train)
         y_test_original = y_test.copy()
         y_test = label_encoder.transform(y_test)
         
-        print(f"\n   Label remapping (to ensure sequential 0-{len(unique)-1}):")
+        print(f"\n   Label remapping (to ensure sequential 0-{len(label_encoder.classes_)-1}):")
         for old_label, new_label in zip(label_encoder.classes_, range(len(label_encoder.classes_))):
             print(f"     {old_label} → {new_label}")
         
