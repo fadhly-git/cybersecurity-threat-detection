@@ -163,7 +163,7 @@ def load_or_preprocess_data(args):
     else:
         # Preprocess data
         if args.dataset == 'cicids2017':
-            loader = CICIDS2017Loader(args.data_path)
+            loader = CICIDS2017Loader(args.data_path, args.sample_ratio)
             X_train, X_test, y_train, y_test = loader.preprocess_pipeline(
                 apply_smote=args.apply_smote
             )
@@ -179,6 +179,7 @@ def load_or_preprocess_data(args):
     # Apply sampling if requested
     if args.sample_ratio is not None:
         from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import LabelEncoder
         
         print(f"\n{'='*60}")
         print(f"  📊 SAMPLING DATA: {args.sample_ratio*100}%")
@@ -204,6 +205,25 @@ def load_or_preprocess_data(args):
         unique, counts = np.unique(y_train, return_counts=True)
         print(f"\n   Class distribution after sampling:")
         for cls, count in zip(unique, counts):
+            pct = count / len(y_train) * 100
+            print(f"     Class {cls}: {count:,} ({pct:.2f}%)")
+        
+        # Re-map labels to be sequential (0, 1, 2, ..., n-1)
+        # This is critical after sampling as some classes may be missing
+        label_encoder = LabelEncoder()
+        y_train_original = y_train.copy()
+        y_train = label_encoder.fit_transform(y_train)
+        y_test_original = y_test.copy()
+        y_test = label_encoder.transform(y_test)
+        
+        print(f"\n   Label remapping (to ensure sequential 0-{len(unique)-1}):")
+        for old_label, new_label in zip(label_encoder.classes_, range(len(label_encoder.classes_))):
+            print(f"     {old_label} → {new_label}")
+        
+        # Update class distribution after remapping
+        unique_new, counts_new = np.unique(y_train, return_counts=True)
+        print(f"\n   Final class distribution (after remapping):")
+        for cls, count in zip(unique_new, counts_new):
             pct = count / len(y_train) * 100
             print(f"     Class {cls}: {count:,} ({pct:.2f}%)")
     
