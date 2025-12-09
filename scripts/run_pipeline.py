@@ -29,7 +29,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run complete threat detection pipeline')
     parser.add_argument('--config', type=str, default='config/config.yaml',
                        help='Path to configuration file')
-    parser.add_argument('--dataset', type=str, default='cybersecurity_attacks',
+    parser.add_argument('--dataset', type=str, default='realistic_attacks',
                        help='Dataset name from config')
     parser.add_argument('--skip-ml', action='store_true',
                        help='Skip ML model training')

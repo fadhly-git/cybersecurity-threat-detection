@@ -6,6 +6,8 @@ custom formatting, and support for different log levels.
 
 import logging
 import os
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -88,6 +90,77 @@ def get_logger(name: str) -> logging.Logger:
         return setup_logger(name)
     
     return logger
+
+
+class DualOutput:
+    """Redirect stdout/stderr to both console and file.
+    
+    Usage:
+        with DualOutput('logs/training.log'):
+            print('This goes to both console and file')
+    """
+    def __init__(self, log_file: str, mode: str = 'a'):
+        self.log_file = Path(log_file)
+        self.log_file.parent.mkdir(parents=True, exist_ok=True)
+        self.mode = mode
+        self.terminal = sys.stdout
+        self.file = None
+        self._progress_buffer = ''
+        self._ansi_pattern = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+        
+    def write(self, message):
+        """Write to both terminal and file."""
+        self.terminal.write(message)
+        if self.file:
+            # Handle carriage return progress updates (in-place updates)
+            if '\r' in message:
+                # Split by \r to get all the progress updates
+                parts = message.split('\r')
+                
+                # Only keep the last part (most recent state)
+                # If message ends with \n, that's the final state - write it
+                if message.endswith('\n'):
+                    # Last update before newline - write it
+                    final_part = parts[-1] if parts[-1] else parts[-2] if len(parts) > 1 else ''
+                    cleaned = self._ansi_pattern.sub('', final_part)
+                    if cleaned.strip():
+                        self.file.write(cleaned)
+                    self._progress_buffer = ''
+                else:
+                    # Still updating - just buffer the latest state, don't write
+                    self._progress_buffer = parts[-1]
+                return
+            
+            # Regular message without \r - write it normally
+            cleaned_message = self._ansi_pattern.sub('', message)
+            if cleaned_message:
+                self.file.write(cleaned_message)
+            self.file.flush()
+    
+    def flush(self):
+        """Flush both outputs."""
+        self.terminal.flush()
+        if self.file:
+            if self._progress_buffer:
+                cleaned_buffer = self._progress_buffer.replace("\r", "")
+                if cleaned_buffer:
+                    self.file.write(cleaned_buffer)
+                self._progress_buffer = ''
+            self.file.flush()
+    
+    def __enter__(self):
+        """Start dual output."""
+        self.file = open(self.log_file, self.mode, encoding='utf-8')
+        sys.stdout = self
+        sys.stderr = self
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Restore original output."""
+        sys.stdout = self.terminal
+        sys.stderr = self.terminal
+        if self.file:
+            self.file.close()
 
 
 class LoggerMixin:

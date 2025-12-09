@@ -7,12 +7,13 @@ Usage:
 import sys
 import argparse
 from pathlib import Path
+from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
 from src.utils.helpers import load_config
-from src.utils.logger import setup_logger
+from src.utils.logger import setup_logger, DualOutput
 from src.models.dl_models import DLModels
 from src.evaluation.metrics import ModelEvaluator
 
@@ -34,6 +35,18 @@ def main():
     
     args = parser.parse_args()
     
+    # Setup logging with timestamp
+    Path('logs/training').mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    log_file = f'logs/training/train_dl_models_{timestamp}.log'
+    
+    # Redirect all output to log file
+    with DualOutput(log_file):
+        _run_dl_training(args)
+
+
+def _run_dl_training(args):
+    """Execute DL training workflow."""
     logger = setup_logger('train_dl')
     
     # Load data

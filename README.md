@@ -60,24 +60,33 @@ data/raw/cybersecurity_attacks.csv
 data/raw/wsn_dataset.csv
 ```
 
-#### 2️⃣ **Run Complete Pipeline**
+#### 2️⃣ **Train Models** ⭐ **NEW: Auto-Logging!**
 ```bash
-python scripts/run_pipeline.py --config config/config.yaml
+# Train hybrid models (RECOMMENDED)
+python scripts/train_all_models.py --models cnn_lstm_mlp --epochs 10
+
+# Train all models
+python scripts/train_all_models.py --models all --epochs 50
+
+# Output saved to: logs/training/train_all_models_TIMESTAMP.log
 ```
 
-#### 3️⃣ **Train Specific Models**
+#### 3️⃣ **Train Specific Model Types**
 ```bash
 # Train ML models
-python scripts/train_ml_models.py --dataset cybersecurity_attacks
+python scripts/train_ml_models.py --models rf,xgb --cv 5
 
 # Train DL models
-python scripts/train_dl_models.py --model cnn --epochs 50
+python scripts/train_dl_models.py --models cnn,lstm --epochs 50
 ```
 
 #### 4️⃣ **Evaluate Models**
 ```bash
-python scripts/evaluate_models.py --compare --output results/
+python scripts/evaluate_models.py --models-dir results/models
 ```
+
+📝 **All training output automatically logged to `logs/` directory!**  
+See [LOGGING_QUICKSTART.md](LOGGING_QUICKSTART.md) for details.
 
 ---
 

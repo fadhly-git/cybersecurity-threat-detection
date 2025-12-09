@@ -37,12 +37,15 @@ ENV/
 *.ipynb_checkpoints
 
 # Data
+data/raw/CICIDS2017/*
+data/raw/*
 data/raw/*.csv
 data/raw/*.txt
 data/raw/*.json
 data/processed/*.csv
 data/processed/*.npy
 data/processed/*.pkl
+data/raw/CICIDS2017/Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv
 
 # Models
 models/*.pkl
@@ -50,6 +53,9 @@ models/*.h5
 models/*.keras
 models/*.pt
 models/*.pth
+models/checkpoints/*.h5
+notebooks/models/
+notebooks/models/checkpoints/*.h5
 
 # Results
 results/

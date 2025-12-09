@@ -1,10 +1,15 @@
 # Data Configuration
 data:
   datasets:
-    - name: "cybersecurity_attacks"
+    - name: "realistic_attacks"
+      path: "data/raw/realistic_attacks.csv"
+      target_column: "Attack_Type"
+      description: "Realistic Cybersecurity Attacks Dataset with Learnable Patterns (~40,000 records)"
+    
+    - name: "cybersecurity_attacks_old"
       path: "data/raw/cybersecurity_attacks.csv"
       target_column: "Attack Type"
-      description: "Cybersecurity Attacks Dataset (~40,000 records)"
+      description: "Original Synthetic Dataset (No Patterns - Not Recommended)"
     
     - name: "wsn_dataset"
       path: "data/raw/WSN-DS.csv"
@@ -12,13 +17,13 @@ data:
       description: "Wireless Sensor Network Dataset (~374,661 records)"
   
   preprocessing:
-    # Only remove truly redundant columns - we'll extract features from others
-    remove_columns: ['Timestamp', 'Proxy Information']
+    # Simplified preprocessing for realistic data
+    remove_columns: ['Timestamp']
     
-    # Extract intelligent features from high-cardinality columns
-    extract_ip_features: true  # Extract IP class, private/public, first octet
-    extract_text_features: true  # Extract length, entropy, SQL/XSS patterns
-    extract_geo_features: true  # Extract city/state encoding
+    # No need for complex feature extraction - data already has patterns
+    extract_ip_features: false
+    extract_text_features: false
+    extract_geo_features: false
     
     correlation_threshold: 0.95
     variance_threshold: 0.01

@@ -374,7 +374,7 @@ class Visualizer(LoggerMixin):
                     go.Scatter(x=df['precision_weighted'], y=df['recall_weighted'],
                              mode='markers+text', text=models,
                              textposition='top center',
-                             marker=dict(size=12, color=range(len(models)),
+                             marker=dict(size=12, color=list(range(len(models))),
                                        colorscale='Viridis'),
                              name='Models'),
                     row=2, col=1
