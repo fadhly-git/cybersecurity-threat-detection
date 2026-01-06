@@ -106,6 +106,9 @@ class CICIDSLoader:
         """Handle missing values dan infinity"""
         print("\nHandling missing values...")
         
+        # Remove duplicate columns first
+        self.df = self.df.loc[:, ~self.df.columns.duplicated()]
+        
         # Replace infinity with NaN
         self.df.replace([np.inf, -np.inf], np.nan, inplace=True)
         
@@ -117,14 +120,21 @@ class CICIDSLoader:
         
         # Fill NaN with median for numeric columns
         for col in numeric_cols:
-            if self.df[col].isnull().sum() > 0:
-                self.df[col].fillna(self.df[col].median(), inplace=True)
+            null_count = self.df[col].isnull().sum()
+            if null_count > 0:
+                median_val = self.df[col].median()
+                if pd.isna(median_val):
+                    median_val = 0  # Fallback if entire column is NaN
+                self.df[col] = self.df[col].fillna(median_val)
         
-        # Drop rows with remaining NaN
-        self.df.dropna(inplace=True)
+        # Instead of dropping rows with NaN, fill object columns with 'Unknown'
+        object_cols = self.df.select_dtypes(include=['object']).columns
+        for col in object_cols:
+            self.df[col] = self.df[col].fillna('Unknown')
         
         missing_after = self.df.isnull().sum().sum()
         print(f"  Missing values: {missing_before:,} → {missing_after:,}")
+        print(f"  Rows remaining: {len(self.df):,}")
     
     def remove_duplicates(self) -> None:
         """Remove duplicate rows"""
@@ -185,17 +195,25 @@ class CICIDSLoader:
     
     def get_feature_columns(self) -> List[str]:
         """Get list of feature columns (exclude labels and non-features)"""
+        # Exclude patterns (both original and cleaned versions)
         exclude_cols = [
-            'Label', 'label', ' Label',
+            'Label', 'label', ' Label', '_Label',
             'attack_category',
-            'Flow_ID', 'Source_IP', 'Destination_IP',
-            'Timestamp', 'Source_Port', 'Destination_Port'
+            'Flow_ID', 'Flow ID', 'Source_IP', 'Source IP', 
+            'Destination_IP', 'Destination IP', 'Src_IP', 'Dst_IP',
+            'Timestamp', 'Source_Port', 'Source Port', 
+            'Destination_Port', 'Destination Port', 'Src_Port', 'Dst_Port'
         ]
         
         # Get all numeric columns except excluded
         feature_cols = [col for col in self.df.columns 
                        if col not in exclude_cols 
-                       and self.df[col].dtype in ['int64', 'float64', 'int32', 'float32']]
+                       and self.df[col].dtype in ['int64', 'float64', 'int32', 'float32', 'int', 'float']]
+        
+        if len(feature_cols) == 0:
+            print(f"WARNING: No numeric feature columns found!")
+            print(f"Available columns: {list(self.df.columns[:20])}...")
+            print(f"Column dtypes: {self.df.dtypes.value_counts().to_dict()}")
         
         self.feature_columns = feature_cols
         return feature_cols
