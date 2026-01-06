@@ -1,25 +1,23 @@
 """
-ml_models.py - Machine Learning Models
-Optimized for CPU
+ml_models.py - Machine Learning Models from Paper
+Based on paper: arxiv.org/abs/2407.06014
+"Evaluating Predictive Models in Cybersecurity: A Comparative Analysis of 
+Machine and Deep Learning Techniques for Threat Detection"
+
+Models: Naive Bayes, Decision Tree, Random Forest, KNN, SVM, Extra Trees
 """
 
 import numpy as np
 import pandas as pd
-from typing import Dict, List, Optional, Tuple, Any
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.model_selection import cross_val_score, StratifiedKFold
-from xgboost import XGBClassifier
-from lightgbm import LGBMClassifier
-from catboost import CatBoostClassifier
-import optuna
-from optuna.samplers import TPESampler
+from typing import Dict, List, Optional, Any
+from sklearn.naive_bayes import GaussianNB
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.model_selection import cross_val_score
 import warnings
 warnings.filterwarnings('ignore')
-
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent.parent))
-from config import Config, ModelConfig
 
 
 class BaseMLModel:
@@ -28,7 +26,6 @@ class BaseMLModel:
     def __init__(self, random_state: int = 42):
         self.random_state = random_state
         self.model = None
-        self.best_params_ = None
         self.cv_scores_ = None
         
     def fit(self, X: np.ndarray, y: np.ndarray):
@@ -42,7 +39,9 @@ class BaseMLModel:
     
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         """Predict probabilities"""
-        return self.model.predict_proba(X)
+        if hasattr(self.model, 'predict_proba'):
+            return self.model.predict_proba(X)
+        return None
     
     def cross_validate(self, X: np.ndarray, y: np.ndarray, 
                        cv: int = 5, scoring: str = 'f1_weighted') -> Dict:
@@ -56,7 +55,7 @@ class BaseMLModel:
         }
     
     def get_feature_importance(self, feature_names: Optional[List[str]] = None) -> pd.DataFrame:
-        """Get feature importance"""
+        """Get feature importance (for tree-based models)"""
         if not hasattr(self.model, 'feature_importances_'):
             return None
         
@@ -73,190 +72,128 @@ class BaseMLModel:
         return df
 
 
-class OptimizedRandomForest(BaseMLModel):
-    """Optimized Random Forest Classifier"""
+# ============================================================================
+# MODELS FROM PAPER
+# ============================================================================
+
+class NaiveBayesModel(BaseMLModel):
+    """Naive Bayes Classifier - Model from Paper"""
     
-    def __init__(self, 
-                 params: Optional[Dict] = None,
+    def __init__(self, random_state: int = 42):
+        super().__init__(random_state)
+        self.model = GaussianNB()
+        self.name = "Naive Bayes"
+
+
+class DecisionTreeModel(BaseMLModel):
+    """Decision Tree Classifier - Model from Paper"""
+    
+    def __init__(self, max_depth: int = 20, random_state: int = 42):
+        super().__init__(random_state)
+        self.model = DecisionTreeClassifier(
+            max_depth=max_depth,
+            random_state=random_state
+        )
+        self.name = "Decision Tree"
+
+
+class RandomForestModel(BaseMLModel):
+    """Random Forest Classifier - Model from Paper"""
+    
+    def __init__(self, n_estimators: int = 100, max_depth: int = 20, 
                  random_state: int = 42):
         super().__init__(random_state)
-        
-        if params is None:
-            params = ModelConfig.RF_DEFAULT.copy()
-        
-        params['random_state'] = random_state
-        self.model = RandomForestClassifier(**params)
-        
-    def tune(self, X: np.ndarray, y: np.ndarray, 
-             n_trials: int = 30, timeout: int = 600) -> Dict:
-        """Tune hyperparameters using Optuna"""
-        
-        def objective(trial):
-            params = {
-                'n_estimators': trial.suggest_int('n_estimators', 100, 300),
-                'max_depth': trial.suggest_int('max_depth', 5, 30),
-                'min_samples_split': trial.suggest_int('min_samples_split', 2, 10),
-                'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 4),
-                'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2']),
-                'class_weight': trial.suggest_categorical('class_weight', ['balanced', None]),
-                'n_jobs': -1,
-                'random_state': self.random_state
-            }
-            
-            model = RandomForestClassifier(**params)
-            cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.random_state)
-            scores = cross_val_score(model, X, y, cv=cv, scoring='f1_weighted', n_jobs=-1)
-            return scores.mean()
-        
-        study = optuna.create_study(direction='maximize', sampler=TPESampler(seed=self.random_state))
-        study.optimize(objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True)
-        
-        self.best_params_ = study.best_params
-        self.best_params_['n_jobs'] = -1
-        self.best_params_['random_state'] = self.random_state
-        self.model = RandomForestClassifier(**self.best_params_)
-        
-        return {'best_params': self.best_params_, 'best_score': study.best_value}
+        self.model = RandomForestClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            n_jobs=-1,
+            random_state=random_state
+        )
+        self.name = "Random Forest"
 
 
-class OptimizedXGBoost(BaseMLModel):
-    """Optimized XGBoost Classifier"""
+class KNNModel(BaseMLModel):
+    """K-Nearest Neighbors Classifier - Model from Paper"""
     
-    def __init__(self,
-                 params: Optional[Dict] = None,
+    def __init__(self, n_neighbors: int = 5, random_state: int = 42):
+        super().__init__(random_state)
+        self.model = KNeighborsClassifier(
+            n_neighbors=n_neighbors,
+            n_jobs=-1
+        )
+        self.name = "KNN"
+
+
+class SVMModel(BaseMLModel):
+    """Support Vector Machine Classifier - Model from Paper"""
+    
+    def __init__(self, kernel: str = 'rbf', random_state: int = 42):
+        super().__init__(random_state)
+        self.model = SVC(
+            kernel=kernel,
+            probability=True,
+            random_state=random_state
+        )
+        self.name = "SVM"
+
+
+class ExtraTreesModel(BaseMLModel):
+    """Extra Trees Classifier - Model from Paper (Best performing!)"""
+    
+    def __init__(self, n_estimators: int = 100, max_depth: int = 20, 
                  random_state: int = 42):
         super().__init__(random_state)
-        
-        if params is None:
-            params = ModelConfig.XGB_DEFAULT.copy()
-        
-        params['random_state'] = random_state
-        self.model = XGBClassifier(**params)
-        
-    def tune(self, X: np.ndarray, y: np.ndarray,
-             n_trials: int = 30, timeout: int = 600) -> Dict:
-        """Tune hyperparameters using Optuna"""
-        
-        def objective(trial):
-            params = {
-                'n_estimators': trial.suggest_int('n_estimators', 100, 300),
-                'max_depth': trial.suggest_int('max_depth', 3, 10),
-                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-                'subsample': trial.suggest_float('subsample', 0.6, 1.0),
-                'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
-                'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
-                'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
-                'n_jobs': -1,
-                'random_state': self.random_state,
-                'verbosity': 0
-            }
-            
-            model = XGBClassifier(**params)
-            cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.random_state)
-            scores = cross_val_score(model, X, y, cv=cv, scoring='f1_weighted', n_jobs=-1)
-            return scores.mean()
-        
-        study = optuna.create_study(direction='maximize', sampler=TPESampler(seed=self.random_state))
-        study.optimize(objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True)
-        
-        self.best_params_ = study.best_params
-        self.best_params_['n_jobs'] = -1
-        self.best_params_['random_state'] = self.random_state
-        self.best_params_['verbosity'] = 0
-        self.model = XGBClassifier(**self.best_params_)
-        
-        return {'best_params': self.best_params_, 'best_score': study.best_value}
+        self.model = ExtraTreesClassifier(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            n_jobs=-1,
+            random_state=random_state
+        )
+        self.name = "Extra Trees"
 
 
-class OptimizedLightGBM(BaseMLModel):
-    """Optimized LightGBM Classifier"""
+# ============================================================================
+# FACTORY FUNCTIONS
+# ============================================================================
+
+def get_ml_models(random_state: int = 42) -> Dict[str, BaseMLModel]:
+    """
+    Get all ML models from paper as a dictionary (wrapped in class).
     
-    def __init__(self,
-                 params: Optional[Dict] = None,
-                 random_state: int = 42):
-        super().__init__(random_state)
-        
-        if params is None:
-            params = ModelConfig.LGBM_DEFAULT.copy()
-        
-        params['random_state'] = random_state
-        self.model = LGBMClassifier(**params)
-        
-    def tune(self, X: np.ndarray, y: np.ndarray,
-             n_trials: int = 30, timeout: int = 600) -> Dict:
-        """Tune hyperparameters using Optuna"""
-        
-        def objective(trial):
-            params = {
-                'n_estimators': trial.suggest_int('n_estimators', 100, 300),
-                'max_depth': trial.suggest_int('max_depth', 3, 12),
-                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-                'num_leaves': trial.suggest_int('num_leaves', 20, 100),
-                'subsample': trial.suggest_float('subsample', 0.6, 1.0),
-                'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
-                'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
-                'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
-                'n_jobs': -1,
-                'random_state': self.random_state,
-                'verbose': -1
-            }
-            
-            model = LGBMClassifier(**params)
-            cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.random_state)
-            scores = cross_val_score(model, X, y, cv=cv, scoring='f1_weighted', n_jobs=-1)
-            return scores.mean()
-        
-        study = optuna.create_study(direction='maximize', sampler=TPESampler(seed=self.random_state))
-        study.optimize(objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True)
-        
-        self.best_params_ = study.best_params
-        self.best_params_['n_jobs'] = -1
-        self.best_params_['random_state'] = self.random_state
-        self.best_params_['verbose'] = -1
-        self.model = LGBMClassifier(**self.best_params_)
-        
-        return {'best_params': self.best_params_, 'best_score': study.best_value}
+    Returns:
+        Dict with model names as keys and model instances as values
+    """
+    return {
+        'Naive Bayes': NaiveBayesModel(random_state=random_state),
+        'Decision Tree': DecisionTreeModel(random_state=random_state),
+        'Random Forest': RandomForestModel(random_state=random_state),
+        'KNN': KNNModel(random_state=random_state),
+        'SVM': SVMModel(random_state=random_state),
+        'Extra Trees': ExtraTreesModel(random_state=random_state),
+    }
 
 
-class OptimizedCatBoost(BaseMLModel):
-    """Optimized CatBoost Classifier"""
+def get_sklearn_models(random_state: int = 42) -> Dict[str, Any]:
+    """
+    Get raw sklearn models (not wrapped in class).
+    Useful for direct training in main.py.
     
-    def __init__(self,
-                 params: Optional[Dict] = None,
-                 random_state: int = 42):
-        super().__init__(random_state)
-        
-        if params is None:
-            params = ModelConfig.CATBOOST_DEFAULT.copy()
-        
-        params['random_state'] = random_state
-        self.model = CatBoostClassifier(**params)
-        
-    def tune(self, X: np.ndarray, y: np.ndarray,
-             n_trials: int = 30, timeout: int = 600) -> Dict:
-        """Tune hyperparameters using Optuna"""
-        
-        def objective(trial):
-            params = {
-                'iterations': trial.suggest_int('iterations', 100, 300),
-                'depth': trial.suggest_int('depth', 4, 10),
-                'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
-                'l2_leaf_reg': trial.suggest_float('l2_leaf_reg', 1, 10),
-                'random_state': self.random_state,
-                'verbose': False
-            }
-            
-            model = CatBoostClassifier(**params)
-            cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=self.random_state)
-            scores = cross_val_score(model, X, y, cv=cv, scoring='f1_weighted', n_jobs=-1)
-            return scores.mean()
-        
-        study = optuna.create_study(direction='maximize', sampler=TPESampler(seed=self.random_state))
-        study.optimize(objective, n_trials=n_trials, timeout=timeout, show_progress_bar=True)
-        
-        self.best_params_ = study.best_params
-        self.best_params_['random_state'] = self.random_state
-        self.best_params_['verbose'] = False
-        self.model = CatBoostClassifier(**self.best_params_)
-        
-        return {'best_params': self.best_params_, 'best_score': study.best_value}
+    Returns:
+        Dict with model names as keys and sklearn model instances as values
+    """
+    from sklearn.linear_model import SGDClassifier
+    
+    return {
+        'Naive Bayes': GaussianNB(),
+        'Decision Tree': DecisionTreeClassifier(max_depth=20, random_state=random_state),
+        'Random Forest': RandomForestClassifier(n_estimators=100, max_depth=20, n_jobs=-1, random_state=random_state),
+        'KNN': KNeighborsClassifier(n_neighbors=5, n_jobs=-1),
+        # Use SGDClassifier with hinge loss (equivalent to linear SVM) - MUCH faster for large datasets
+        'SVM': SGDClassifier(loss='hinge', max_iter=1000, tol=1e-3, random_state=random_state, n_jobs=-1),
+        'Extra Trees': ExtraTreesClassifier(n_estimators=100, max_depth=20, n_jobs=-1, random_state=random_state),
+    }
+
+
+# For backward compatibility
+OptimizedRandomForest = RandomForestModel
+OptimizedDecisionTree = DecisionTreeModel
