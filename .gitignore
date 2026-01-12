@@ -56,6 +56,7 @@ models/*.pth
 models/checkpoints/*.h5
 notebooks/models/
 notebooks/models/checkpoints/*.h5
+saved_models/
 
 # Results
 results/
